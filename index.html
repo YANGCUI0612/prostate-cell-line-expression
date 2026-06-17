@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prostate Cell-Line Expression Explorer</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e6e8ec; --ink:#1b2330; --muted:#6b7480;
+    --faint:#9aa2ad; --accentA:#0d9488; --accentB:#d97706;
+    --lin-ar:#6366f1; --lin-arlow:#a855f7; --lin-ne:#e11d48; --lin-benign:#10b981; --lin-other:#94a3b8;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.05);
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased;
+  }
+  .app{display:flex;flex-direction:column;height:100vh;min-height:0}
+  /* header */
+  header{padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  header h1{font-size:16px;font-weight:650;margin:0;letter-spacing:-.01em}
+  header .prov{font-size:12px;color:var(--muted)}
+  header .prov b{color:var(--ink);font-weight:600}
+  header .tag{font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:2px 9px;margin-left:auto}
+  /* main grid */
+  main{flex:1;min-height:0;display:grid;grid-template-columns:288px minmax(0,1fr) 380px;gap:14px;padding:14px;overflow:auto}
+  main.collapsed{grid-template-columns:minmax(0,1fr) 380px}
+  main.collapsed #leftCol{display:none}
+  .centerCol>.card{min-height:0}
+  /* collapse / restore controls */
+  .iconbtn{width:26px;height:24px;border:1px solid var(--line);background:#fff;border-radius:7px;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+  .iconbtn:hover{border-color:var(--faint);color:var(--ink)}
+  #showSidebar{display:none;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);padding:7px 12px;cursor:pointer;margin-bottom:-2px}
+  #showSidebar:hover{border-color:var(--accentA);color:var(--accentA)}
+  main.collapsed #showSidebar{display:inline-flex}
+  .centerTop{display:flex;align-items:center;gap:10px;margin-bottom:0}
+  .col{display:flex;flex-direction:column;min-height:0;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:0}
+  .card>.hd{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .card>.hd h2{font-size:13px;font-weight:650;margin:0}
+  .card>.hd .sub{font-size:11.5px;color:var(--muted);margin-left:auto;font-weight:500}
+  .card>.bd{padding:12px 14px;overflow:auto;min-height:0}
+  /* sidebar: cell line selector */
+  .lin-group{margin-bottom:14px}
+  .lin-group:last-child{margin-bottom:0}
+  .lin-head{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin:0 0 7px 2px}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .line-row{display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:9px;border:1px solid transparent}
+  .line-row:hover{background:#f9fafb}
+  .line-row.inA{background:rgba(13,148,136,.07);border-color:rgba(13,148,136,.30)}
+  .line-row.inB{background:rgba(217,119,6,.07);border-color:rgba(217,119,6,.30)}
+  .line-name{flex:1;font-weight:550;font-size:13px}
+  .ab{display:flex;gap:4px}
+  .ab button{width:26px;height:24px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:700;font-size:12px;cursor:pointer;transition:.12s}
+  .ab button:hover{border-color:var(--faint)}
+  .ab button.onA{background:var(--accentA);border-color:var(--accentA);color:#fff}
+  .ab button.onB{background:var(--accentB);border-color:var(--accentB);color:#fff}
+  .group-summary{display:flex;gap:8px;margin-bottom:12px}
+  .grp{flex:1;border-radius:9px;padding:8px 10px;font-size:11.5px;border:1px solid var(--line)}
+  .grp .lbl{font-weight:700;font-size:11px;letter-spacing:.02em}
+  .grp.A{background:rgba(13,148,136,.06)} .grp.A .lbl{color:var(--accentA)}
+  .grp.B{background:rgba(217,119,6,.06)} .grp.B .lbl{color:var(--accentB)}
+  .grp .members{color:var(--muted);margin-top:2px}
+  .minibtn{font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0}
+  /* volcano */
+  #volWrap{position:relative;flex:1;min-height:340px}
+  #volCanvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+  #volSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .axis-label{font-size:11px;fill:var(--muted)}
+  .tick{font-size:10px;fill:var(--faint)}
+  .gridline{stroke:#eef0f3;stroke-width:1}
+  .threshline{stroke:#cbd2db;stroke-width:1;stroke-dasharray:4 4}
+  .glabel{font-size:10.5px;font-weight:650;fill:#1b2330;paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round}
+  .gring{fill:none;stroke:#1b2330;stroke-width:1.4}
+  #tooltip{position:absolute;pointer-events:none;background:#1b2330;color:#fff;border-radius:8px;padding:7px 10px;font-size:12px;opacity:0;transition:opacity .08s;z-index:5;box-shadow:0 6px 20px rgba(0,0,0,.25);white-space:nowrap}
+  #tooltip b{font-weight:650}
+  #tooltip .t-row{color:#cfd5de;font-size:11px;margin-top:2px}
+  .banner{margin:0 14px 12px;padding:8px 11px;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;font-size:12px;color:#9a3412}
+  .ctrls{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .ctrls input[type=range]{width:84px}
+  .legend{display:flex;gap:14px;font-size:11.5px;color:var(--muted);align-items:center}
+  .legend .sw{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:-1px}
+  /* gene bar chart — sized so all 13 lines show without scrolling */
+  #barChart{padding:6px 2px 2px;overflow:hidden;display:flex;flex-direction:column;flex:1 1 0;min-height:0}
+  #barChart .gname{font-weight:650;font-size:14px;margin:0 0 7px}
+  .bar-row{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;flex:1 1 0;min-height:0}
+  .bar-name{width:92px;flex:0 0 auto;text-align:right;color:var(--ink);font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{flex:1;height:62%;max-height:18px;min-height:9px;background:#f1f3f5;border-radius:5px;position:relative;overflow:hidden}
+  .bar-fill{display:block;height:100%;min-width:2px;border-radius:5px;transition:width .25s}
+  .bar-val{width:46px;flex:0 0 auto;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+  .bar-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;flex:0 0 auto}
+  .empty{color:var(--faint);font-size:13px;text-align:center;padding:20px 10px;margin:auto}
+  /* DEG table */
+  .deg-tools{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .deg-tools input{flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;outline:none}
+  .deg-tools input:focus{border-color:var(--accentA)}
+  .tbl-scroll{overflow:auto;min-height:0;flex:1}
+  table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+  thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--line);padding:7px 8px;text-align:right;font-weight:650;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none}
+  thead th:first-child{text-align:left}
+  thead th:hover{color:var(--ink)}
+  thead th .arr{color:var(--accentA);font-size:10px}
+  tbody td{padding:6px 8px;text-align:right;border-bottom:1px solid #f1f3f5;white-space:nowrap}
+  tbody td:first-child{text-align:left;font-weight:600}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#f9fafb}
+  tbody tr.sel{background:rgba(13,148,136,.10)}
+  .up{color:var(--accentA)} .down{color:var(--accentB)}
+  .foot{padding:7px 14px;font-size:11px;color:var(--faint);border-top:1px solid var(--line);flex:0 0 auto}
+  @media (max-width:1100px){
+    main,main.collapsed{grid-template-columns:1fr;gap:14px;overflow:auto;height:auto}
+    .app{height:auto;min-height:100vh}
+    #volWrap{height:440px;flex:none;min-height:0}
+    .centerCol>.card{flex:0 0 auto!important;min-height:0}
+    #barChart{flex:0 0 auto;height:300px}
+    .tbl-scroll{max-height:480px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Prostate Cell-Line Expression Explorer</h1>
+    <span class="prov">Pick cell lines into <b style="color:var(--accentA)">Group A</b> / <b style="color:var(--accentB)">Group B</b>, read the volcano, click any gene.</span>
+    <span class="tag" id="provTag"></span>
+  </header>
+  <main>
+    <!-- LEFT: cell line selector -->
+    <div class="col" id="leftCol" style="overflow:hidden">
+      <div class="card" style="flex:1">
+        <div class="hd"><h2>Cell lines by lineage</h2><span class="sub" id="selSub"></span>
+          <button class="iconbtn" id="collapseBtn" title="Collapse panel" style="margin-left:8px">‹</button></div>
+        <div class="bd" id="sidebar"></div>
+      </div>
+    </div>
+
+    <!-- CENTER: volcano + gene bar chart -->
+    <div class="col centerCol">
+      <button id="showSidebar" title="Show cell lines &amp; groups">☰&nbsp; Cell lines &amp; groups</button>
+      <div class="card" id="volCard" style="flex:1.45 1 0;min-height:386px">
+        <div class="hd">
+          <h2>Volcano</h2>
+          <div class="ctrls" style="margin-left:14px">
+            <label>|log2FC| ≥ <span id="fcVal">1.0</span><input type="range" id="fcThresh" min="0" max="4" step="0.25" value="1"></label>
+            <label>p ≤ <span id="pVal">0.05</span><input type="range" id="pThresh" min="1" max="4" step="0.5" value="1.3"></label>
+          </div>
+          <span class="legend sub" style="margin-left:auto">
+            <span><span class="sw" style="background:var(--accentA)"></span>up in A</span>
+            <span><span class="sw" style="background:var(--accentB)"></span>up in B</span>
+            <span><span class="sw" style="background:#c4cad2"></span>n.s.</span>
+          </span>
+        </div>
+        <div id="volBanner"></div>
+        <div id="volWrap">
+          <canvas id="volCanvas"></canvas>
+          <svg id="volSvg"></svg>
+          <div id="tooltip"></div>
+        </div>
+      </div>
+      <div class="card" id="barCard" style="flex:1 1 0;min-height:248px">
+        <div class="hd"><h2>Gene across all 13 cell lines</h2><span class="sub" id="barSub">select a gene</span></div>
+        <div class="bd" id="barChart"><div class="empty">Click a point in the volcano or a row in the table to see how a gene behaves across every cell line.</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: DEG table -->
+    <div class="col" id="rightCol" style="overflow:hidden">
+      <div class="card" style="flex:1">
+        <div class="hd"><h2>Differential genes</h2><span class="sub" id="degSub"></span></div>
+        <div class="deg-tools"><input id="geneSearch" placeholder="Search gene…" autocomplete="off"></div>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr id="degHead"></tr></thead>
+            <tbody id="degBody"></tbody>
+          </table>
+        </div>
+        <div class="foot" id="degFoot"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script>
+"use strict";
+const D = window.EXPR_DATA;
+const GENES = D.genes, CELLS = D.cellLines, MAT = D.matrix;
+const NG = GENES.length;
+
+const LIN_ORDER = ["AR/luminal-enriched","AR-low / mesenchymal-like","NE / small-cell","Benign / control"];
+const LIN_COLOR = {
+  "AR/luminal-enriched":"var(--lin-ar)","AR-low / mesenchymal-like":"var(--lin-arlow)",
+  "NE / small-cell":"var(--lin-ne)","Benign / control":"var(--lin-benign)","Unassigned":"var(--lin-other)"
+};
+const LIN_HEX = {
+  "AR/luminal-enriched":"#6366f1","AR-low / mesenchymal-like":"#a855f7",
+  "NE / small-cell":"#e11d48","Benign / control":"#10b981","Unassigned":"#94a3b8"
+};
+
+// selection state: map cellIndex -> 'A' | 'B' | null
+const sel = new Array(CELLS.length).fill(null);
+// sensible default comparison: AR/luminal (A) vs Benign (B)
+CELLS.forEach((c,i)=>{
+  if(c.lineage==="AR/luminal-enriched") sel[i]="A";
+  else if(c.lineage==="Benign / control") sel[i]="B";
+});
+
+let stats = [];          // [{g, mA, mB, fc, p, nlp}]
+let top10 = [];          // gene indices of the strongest hits, for on-plot labels
+let selectedGene = null; // gene index
+let sortKey = "p", sortDir = 1;
+let fcCut = 1.0, nlpCut = 1.3; // -log10(0.05)
+let hasP = true;
+
+document.getElementById("provTag").textContent = D.unit + " · DepMap 26Q1";
+
+/* ---------- statistics ---------- */
+function gammln(x){
+  const c=[76.18009172947146,-86.50532032941677,24.01409824083091,
+           -1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x, t=x+5.5; t-=(x+0.5)*Math.log(t);
+  let s=1.000000000190015;
+  for(let j=0;j<6;j++){y++;s+=c[j]/y;}
+  return -t+Math.log(2.5066282746310005*s/x);
+}
+function betacf(a,b,x){
+  const FPMIN=1e-30; let qab=a+b,qap=a+1,qam=a-1;
+  let c=1,d=1-qab*x/qap; if(Math.abs(d)<FPMIN)d=FPMIN; d=1/d; let h=d;
+  for(let m=1;m<=200;m++){
+    let m2=2*m;
+    let aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN; d=1/d; h*=d*c;
+    aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN; d=1/d;
+    let del=d*c; h*=del; if(Math.abs(del-1)<3e-7)break;
+  }
+  return h;
+}
+function betai(a,b,x){
+  if(x<=0)return 0; if(x>=1)return 1;
+  const bt=Math.exp(gammln(a+b)-gammln(a)-gammln(b)+a*Math.log(x)+b*Math.log(1-x));
+  if(x<(a+1)/(a+b+2)) return bt*betacf(a,b,x)/a;
+  return 1-bt*betacf(b,a,1-x)/b;
+}
+// two-sided p from Welch's t-test
+function welchP(t,df){ if(!isFinite(t)||!isFinite(df)||df<=0)return 1; return betai(df/2,0.5,df/(df+t*t)); }
+
+function mean(a){let s=0;for(const v of a)s+=v;return s/a.length;}
+function variance(a,m){if(a.length<2)return 0;let s=0;for(const v of a)s+=(v-m)*(v-m);return s/(a.length-1);}
+
+function computeStats(){
+  const idxA=[],idxB=[];
+  sel.forEach((s,i)=>{ if(s==="A")idxA.push(i); else if(s==="B")idxB.push(i); });
+  const nA=idxA.length,nB=idxB.length;
+  hasP = nA>=2 && nB>=2;
+  stats = new Array(NG);
+  const LN2=Math.LN2;
+  for(let g=0;g<NG;g++){
+    const va=new Array(nA), vb=new Array(nB);
+    let tpmA=0,tpmB=0;
+    for(let k=0;k<nA;k++){const v=MAT[idxA[k]][g]; va[k]=v; tpmA+=Math.expm1(v);}
+    for(let k=0;k<nB;k++){const v=MAT[idxB[k]][g]; vb[k]=v; tpmB+=Math.expm1(v);}
+    const mAl=nA?mean(va):0, mBl=nB?mean(vb):0;
+    tpmA=nA?tpmA/nA:0; tpmB=nB?tpmB/nB:0;
+    const fc=Math.log2((tpmA+1)/(tpmB+1));
+    let p=1,nlp=0;
+    if(hasP){
+      const sa=variance(va,mAl), sb=variance(vb,mBl);
+      const se2=sa/nA+sb/nB;
+      if(se2>0){
+        const t=(mAl-mBl)/Math.sqrt(se2);
+        const df=(se2*se2)/((sa/nA)*(sa/nA)/(nA-1)+(sb/nB)*(sb/nB)/(nB-1));
+        p=welchP(t,df); nlp=-Math.log10(Math.max(p,1e-300));
+      }
+    } else {
+      // no replicates -> y axis = average expression magnitude (honest fallback)
+      nlp=(mAl+mBl)/2;
+    }
+    stats[g]={g, mA:mAl, mB:mBl, fc, p, nlp};
+  }
+  // top 10 by combined strength = significance(or expr) x |fold change|, balanced across both directions
+  const score=s=>(s.nlp>0?s.nlp:0.001)*Math.abs(s.fc);
+  const up=stats.filter(s=>s.fc>0).sort((a,b)=>score(b)-score(a)).slice(0,5);
+  const dn=stats.filter(s=>s.fc<0).sort((a,b)=>score(b)-score(a)).slice(0,5);
+  top10=up.concat(dn).map(s=>s.g);
+}
+
+/* ---------- sidebar ---------- */
+function renderSidebar(){
+  const sb=document.getElementById("sidebar");
+  let nA=0,nB=0; sel.forEach(s=>{if(s==="A")nA++;else if(s==="B")nB++;});
+  const memA=CELLS.filter((c,i)=>sel[i]==="A").map(c=>c.name).join(", ")||"—";
+  const memB=CELLS.filter((c,i)=>sel[i]==="B").map(c=>c.name).join(", ")||"—";
+  let html=`<div class="group-summary">
+    <div class="grp A"><div class="lbl">GROUP A · ${nA}</div><div class="members">${memA}</div></div>
+    <div class="grp B"><div class="lbl">GROUP B · ${nB}</div><div class="members">${memB}</div></div>
+  </div>
+  <div style="text-align:right;margin:-4px 0 10px"><button class="minibtn" id="clearSel">clear selection</button></div>`;
+  for(const lin of LIN_ORDER){
+    const members=CELLS.map((c,i)=>({c,i})).filter(o=>o.c.lineage===lin);
+    if(!members.length)continue;
+    html+=`<div class="lin-group"><div class="lin-head"><span class="dot" style="background:${LIN_COLOR[lin]}"></span>${lin}</div>`;
+    for(const {c,i} of members){
+      const st=sel[i];
+      html+=`<div class="line-row ${st==='A'?'inA':st==='B'?'inB':''}" data-i="${i}">
+        <span class="line-name">${c.name}</span>
+        <span class="ab">
+          <button class="${st==='A'?'onA':''}" data-i="${i}" data-g="A">A</button>
+          <button class="${st==='B'?'onB':''}" data-i="${i}" data-g="B">B</button>
+        </span></div>`;
+    }
+    html+=`</div>`;
+  }
+  sb.innerHTML=html;
+  sb.querySelectorAll(".ab button").forEach(btn=>{
+    btn.onclick=()=>{ const i=+btn.dataset.i, g=btn.dataset.g; sel[i]= sel[i]===g? null : g; recompute(); };
+  });
+  document.getElementById("clearSel").onclick=()=>{ sel.fill(null); recompute(); };
+  document.getElementById("selSub").textContent=`${nA+nB} selected`;
+}
+
+/* ---------- volcano (canvas) ---------- */
+const canvas=document.getElementById("volCanvas"), ctx=canvas.getContext("2d");
+const svg=document.getElementById("volSvg"), tooltip=document.getElementById("tooltip");
+let plot={pad:{l:48,r:14,t:14,b:38}, w:0,h:0, xMin:0,xMax:0,yMin:0,yMax:0, pts:null};
+
+function niceBounds(){
+  let xmax=0,ymax=0;
+  for(const s of stats){ const ax=Math.abs(s.fc); if(ax>xmax)xmax=ax; if(s.nlp>ymax)ymax=s.nlp; }
+  xmax=Math.max(1,Math.ceil(xmax)); ymax=Math.max(1,ymax*1.05);
+  plot.xMin=-xmax; plot.xMax=xmax; plot.yMin=0; plot.yMax=ymax;
+}
+function X(fc){const {l,r}=plot.pad; return l+(fc-plot.xMin)/(plot.xMax-plot.xMin)*(plot.w-l-r);}
+function Y(v){const {t,b}=plot.pad; return t+(1-(v-plot.yMin)/(plot.yMax-plot.yMin))*(plot.h-t-b);}
+
+function drawVolcano(){
+  const wrap=document.getElementById("volWrap");
+  const dpr=window.devicePixelRatio||1;
+  plot.w=wrap.clientWidth; plot.h=wrap.clientHeight;
+  if(plot.w<60||plot.h<60){ return; } // container not laid out yet; ResizeObserver will recall
+  canvas.width=plot.w*dpr; canvas.height=plot.h*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,plot.w,plot.h);
+  niceBounds();
+  // points
+  plot.pts=new Float32Array(NG*2);
+  ctx.globalAlpha=.55;
+  for(let g=0;g<NG;g++){
+    const s=stats[g]; const px=X(s.fc), py=Y(s.nlp);
+    plot.pts[g*2]=px; plot.pts[g*2+1]=py;
+    let col="#c4cad2";
+    if(hasP && s.nlp>=nlpCut && Math.abs(s.fc)>=fcCut) col = s.fc>0? "#0d9488":"#d97706";
+    else if(!hasP && Math.abs(s.fc)>=fcCut) col = s.fc>0? "#0d9488":"#d97706";
+    ctx.fillStyle=col;
+    ctx.beginPath(); ctx.arc(px,py,2.1,0,6.2832); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // selected gene highlight
+  if(selectedGene!=null){
+    const s=stats[selectedGene], px=X(s.fc), py=Y(s.nlp);
+    ctx.strokeStyle="#1b2330"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(px,py,5.5,0,6.2832); ctx.stroke();
+    ctx.fillStyle="#1b2330"; ctx.beginPath(); ctx.arc(px,py,2.6,0,6.2832); ctx.fill();
+  }
+  drawAxes();
+}
+function drawAxes(){
+  const {l,r,t,b}=plot.pad; const ns=[];
+  // x ticks
+  const xstep=plot.xMax<=2?0.5:1;
+  for(let v=Math.ceil(plot.xMin/xstep)*xstep; v<=plot.xMax+1e-9; v+=xstep){
+    const px=X(v);
+    ns.push(`<line class="gridline" x1="${px}" y1="${t}" x2="${px}" y2="${plot.h-b}"/>`);
+    ns.push(`<text class="tick" x="${px}" y="${plot.h-b+15}" text-anchor="middle">${(+v.toFixed(2))}</text>`);
+  }
+  // y ticks
+  const yticks=5;
+  for(let k=0;k<=yticks;k++){
+    const v=plot.yMin+(plot.yMax-plot.yMin)*k/yticks; const py=Y(v);
+    ns.push(`<line class="gridline" x1="${l}" y1="${py}" x2="${plot.w-r}" y2="${py}"/>`);
+    ns.push(`<text class="tick" x="${l-6}" y="${py+3}" text-anchor="end">${v.toFixed(1)}</text>`);
+  }
+  // threshold guides
+  if(hasP){
+    const py=Y(nlpCut);
+    ns.push(`<line class="threshline" x1="${l}" y1="${py}" x2="${plot.w-r}" y2="${py}"/>`);
+  }
+  [fcCut,-fcCut].forEach(f=>{ if(Math.abs(f)<=plot.xMax){const px=X(f); ns.push(`<line class="threshline" x1="${px}" y1="${t}" x2="${px}" y2="${plot.h-b}"/>`);} });
+  // axis labels
+  ns.push(`<text class="axis-label" x="${(l+plot.w-r)/2}" y="${plot.h-4}" text-anchor="middle">log2 fold change  (A vs B)</text>`);
+  const ylab = hasP ? "−log10 p (Welch t-test)" : "mean expression  log1p(TPM)";
+  ns.push(`<text class="axis-label" transform="translate(13,${(t+plot.h-b)/2}) rotate(-90)" text-anchor="middle">${ylab}</text>`);
+  // top-10 gene labels (skip the selected gene; it has its own marker)
+  for(const g of top10){
+    if(g===selectedGene) continue;
+    const s=stats[g], px=X(s.fc), py=Y(s.nlp);
+    const right = px < plot.w-70;            // place label on the open side
+    const lx = right ? px+6 : px-6;
+    ns.push(`<circle class="gring" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.4"/>`);
+    ns.push(`<text class="glabel" x="${lx.toFixed(1)}" y="${(py-4).toFixed(1)}" text-anchor="${right?'start':'end'}">${GENES[g]}</text>`);
+  }
+  svg.innerHTML=ns.join("");
+}
+
+// hit testing
+canvas.addEventListener("mousemove",e=>{
+  const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  let best=-1,bd=64; // 8px radius squared
+  const pts=plot.pts; if(!pts)return;
+  for(let g=0;g<NG;g++){ const dx=pts[g*2]-mx, dy=pts[g*2+1]-my; const d=dx*dx+dy*dy; if(d<bd){bd=d;best=g;} }
+  if(best<0){ tooltip.style.opacity=0; canvas.style.cursor="crosshair"; return; }
+  const s=stats[best]; canvas.style.cursor="pointer";
+  tooltip.innerHTML=`<b>${GENES[best]}</b>
+    <div class="t-row">log2FC ${s.fc>=0?'+':''}${s.fc.toFixed(2)} · A ${s.mA.toFixed(2)} · B ${s.mB.toFixed(2)}</div>
+    <div class="t-row">${hasP? 'p '+s.p.toExponential(1)+' · −log10p '+s.nlp.toFixed(2) : 'no p-value (need ≥2 lines per group)'}</div>`;
+  tooltip.style.opacity=1;
+  let tx=mx+14, ty=my+12;
+  if(tx+tooltip.offsetWidth>plot.w) tx=mx-tooltip.offsetWidth-14;
+  if(ty+tooltip.offsetHeight>plot.h) ty=my-tooltip.offsetHeight-12;
+  tooltip.style.left=tx+"px"; tooltip.style.top=ty+"px";
+});
+canvas.addEventListener("mouseleave",()=>tooltip.style.opacity=0);
+canvas.addEventListener("click",e=>{
+  const rect=canvas.getBoundingClientRect(); const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  let best=-1,bd=100; const pts=plot.pts; if(!pts)return;
+  for(let g=0;g<NG;g++){ const dx=pts[g*2]-mx, dy=pts[g*2+1]-my; const d=dx*dx+dy*dy; if(d<bd){bd=d;best=g;} }
+  if(best>=0) selectGene(best);
+});
+
+function updateBanner(){
+  const el=document.getElementById("volBanner");
+  let nA=0,nB=0; sel.forEach(s=>{if(s==="A")nA++;else if(s==="B")nB++;});
+  if(nA===0||nB===0){ el.innerHTML=`<div class="banner">Pick at least one cell line into <b>both</b> Group A and Group B to compare.</div>`; return; }
+  if(!hasP){ el.innerHTML=`<div class="banner">Single cell line in a group → no replicate p-value. Showing <b>log2 fold change</b> vs <b>mean expression</b>. Put ≥2 lines in each group for a statistical volcano.</div>`; return; }
+  el.innerHTML="";
+}
+
+/* ---------- DEG table ---------- */
+function cols(){
+  const c=[
+    {k:"g",   t:"Gene",   fmt:s=>GENES[s.g]},
+    {k:"mA",  t:"mean A", fmt:s=>s.mA.toFixed(2)},
+    {k:"mB",  t:"mean B", fmt:s=>s.mB.toFixed(2)},
+    {k:"fc",  t:"log2FC", fmt:s=>(s.fc>=0?'+':'')+s.fc.toFixed(2), cls:s=>s.fc>0?'up':'down'},
+  ];
+  if(hasP) c.push({k:"p",t:"p",fmt:s=>s.p.toExponential(1)});
+  else     c.push({k:"nlp",t:"meanExpr",fmt:s=>s.nlp.toFixed(2)});
+  return c;
+}
+let COLS=cols();
+function renderHead(){
+  COLS=cols();
+  if(!COLS.find(c=>c.k===sortKey)) sortKey="fc";
+  document.getElementById("degHead").innerHTML=COLS.map(c=>{
+    const arr= sortKey===c.k ? `<span class="arr">${sortDir<0?'▼':'▲'}</span>`:"";
+    return `<th data-k="${c.k}">${c.t} ${arr}</th>`;
+  }).join("");
+  document.querySelectorAll("#degHead th").forEach(th=>{
+    th.onclick=()=>{ const k=th.dataset.k; if(sortKey===k)sortDir*=-1; else {sortKey=k; sortDir = k==="g"?1:-1;} renderTable(); };
+  });
+}
+function renderTable(){
+  renderHead();
+  const q=document.getElementById("geneSearch").value.trim().toUpperCase();
+  let rows=stats;
+  if(q) rows=rows.filter(s=>GENES[s.g].toUpperCase().includes(q));
+  rows=rows.slice().sort((a,b)=>{
+    let va = sortKey==="g"?GENES[a.g]:a[sortKey], vb = sortKey==="g"?GENES[b.g]:b[sortKey];
+    if(sortKey==="g") return va<vb?-1*sortDir:va>vb?1*sortDir:0;
+    return (va-vb)*sortDir;
+  });
+  const CAP=300; const shown=rows.slice(0,CAP);
+  document.getElementById("degBody").innerHTML=shown.map(s=>{
+    const tds=COLS.map(c=>`<td class="${c.cls?c.cls(s):''}">${c.fmt(s)}</td>`).join("");
+    return `<tr data-g="${s.g}" class="${s.g===selectedGene?'sel':''}">${tds}</tr>`;
+  }).join("");
+  document.querySelectorAll("#degBody tr").forEach(tr=>tr.onclick=()=>selectGene(+tr.dataset.g));
+  document.getElementById("degFoot").textContent=`showing ${shown.length} of ${rows.length} genes`;
+  // significant count
+  let sig=0; if(hasP){ for(const s of stats) if(s.nlp>=nlpCut && Math.abs(s.fc)>=fcCut) sig++; }
+  document.getElementById("degSub").textContent = hasP? `${sig} significant` : `${NG} genes`;
+}
+
+/* ---------- gene bar chart ---------- */
+function selectGene(g){
+  selectedGene=g; renderBars(); renderTable(); drawVolcano();
+  // scroll table to selected if present
+}
+function renderBars(){
+  const el=document.getElementById("barChart");
+  if(selectedGene==null){ el.innerHTML=`<div class="empty">Click a point in the volcano or a row in the table.</div>`; return; }
+  const g=selectedGene;
+  document.getElementById("barSub").textContent=GENES[g]+" · log1p(TPM)";
+  const rows=CELLS.map((c,i)=>({name:c.name,lin:c.lineage,v:MAT[i][g],a:sel[i]}));
+  const max=Math.max(0.001,...rows.map(r=>r.v));
+  rows.sort((a,b)=>b.v-a.v);
+  el.innerHTML=`<div class="gname">${GENES[g]}</div>`+
+    rows.map(r=>{
+      const pct=(r.v/max*100).toFixed(1);
+      const tag=r.a==='A'?'<span style="color:var(--accentA);font-weight:700"> A</span>':r.a==='B'?'<span style="color:var(--accentB);font-weight:700"> B</span>':'';
+      return `<div class="bar-row">
+        <span class="bar-name" title="${r.name}">${r.name}${tag}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${LIN_HEX[r.lin]}"></span></span>
+        <span class="bar-val">${r.v.toFixed(2)}</span>
+      </div>`;
+    }).join("")+
+    `<div class="bar-legend">${
+      LIN_ORDER.map(l=>`<span style="font-size:11px;color:var(--muted)"><span class="dot" style="display:inline-block;background:${LIN_HEX[l]};margin-right:5px;vertical-align:0"></span>${l}</span>`).join("")
+    }</div>`;
+}
+
+/* ---------- orchestration ---------- */
+function recompute(){
+  computeStats();
+  renderSidebar();
+  updateBanner();
+  drawVolcano();
+  renderTable();
+  if(selectedGene!=null) renderBars();
+}
+// controls
+document.getElementById("fcThresh").oninput=e=>{ fcCut=+e.target.value; document.getElementById("fcVal").textContent=fcCut.toFixed(2); drawVolcano(); renderTable(); };
+document.getElementById("pThresh").oninput=e=>{ nlpCut=+e.target.value; document.getElementById("pVal").textContent=Math.pow(10,-nlpCut).toExponential(1); drawVolcano(); renderTable(); };
+document.getElementById("geneSearch").oninput=()=>renderTable();
+document.getElementById("pVal").textContent=(0.05).toString();
+
+// collapse / restore the cell-line panel
+const mainEl=document.querySelector("main");
+document.getElementById("collapseBtn").onclick=()=>{ mainEl.classList.add("collapsed"); };
+document.getElementById("showSidebar").onclick=()=>{ mainEl.classList.remove("collapsed"); };
+
+// redraw whenever the plot box changes size (window resize, sidebar collapse, layout reflow)
+let rAF;
+const ro=new ResizeObserver(()=>{ cancelAnimationFrame(rAF); rAF=requestAnimationFrame(drawVolcano); });
+ro.observe(document.getElementById("volWrap"));
+
+// boot
+recompute();
+// preselect a notable gene if present
+const boot = GENES.indexOf("AR")>=0 ? GENES.indexOf("AR") : (GENES.indexOf("KLK3")>=0?GENES.indexOf("KLK3"):null);
+if(boot!=null) selectGene(boot); else { requestAnimationFrame(drawVolcano); }
+</script>
+</body>
+</html>
