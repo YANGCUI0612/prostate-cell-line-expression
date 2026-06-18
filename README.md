@@ -32,30 +32,6 @@ Prostate-cancer research relies on a small set of canonical cell lines spanning 
 - **Sortable differential-expression table** — every column sorts ascending or descending, with gene-symbol search.
 - **Per-gene expression profile** — selecting a gene renders its expression across all 13 lines, coloured by lineage.
 
-## Data and methods
-
-**Source.** The prostate subset of *DepMap Public 26Q1* (`OmicsExpressionTPMLogp1HumanProteinCodingGenes`): **log1p(TPM)** for 19,215 protein-coding genes across 13 cell lines. Values are DepMap-harmonized; they are **not** additionally batch-corrected here.
-
-**Fold change.** Expression is returned to linear TPM and summarized as a log-ratio of group means:
-
-$$\log_2\mathrm{FC} = \log_2\!\frac{\overline{\mathrm{TPM}}_A + 1}{\overline{\mathrm{TPM}}_B + 1}$$
-
-**Significance.** A two-sided **Welch's *t*-test** on the log1p(TPM) values, treating cell lines as replicates, with Welch–Satterthwaite degrees of freedom:
-
-$$t = \frac{\bar{x}_A - \bar{x}_B}{\sqrt{s_A^2/n_A + s_B^2/n_B}}$$
-
-This requires **≥ 2 lines per group**; with a single line the *p*-value is undefined, the interface states so, and the ordinate falls back to mean expression. Default thresholds are |log₂FC| ≥ 1 and *p* ≤ 0.05, both adjustable.
-
-## Usage
-
-```bash
-git clone https://github.com/YANGCUI0612/prostate-cell-line-expression.git
-cd prostate-cell-line-expression
-open index.html            # open directly — no server required
-```
-
-To regenerate `data.js` from the source DepMap matrix: `python3 build_data.py`.
-
 ## Cell-line panel
 
 | Cell lines | Molecular lineage | Role |

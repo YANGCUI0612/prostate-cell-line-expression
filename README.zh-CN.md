@@ -32,30 +32,6 @@
 - **可排序的差异表达表** —— 每一列均可升序/降序排序,支持按基因名搜索。
 - **单基因表达谱** —— 选择某个基因后,展示其在全部 13 个细胞系中的表达,并按谱系着色。
 
-## 数据与方法
-
-**数据来源。** *DepMap Public 26Q1* 的前列腺子集(`OmicsExpressionTPMLogp1HumanProteinCodingGenes`):13 个细胞系、19,215 个蛋白编码基因的 **log1p(TPM)**。数据为 DepMap 统一处理,**未**在此额外做批次校正。
-
-**倍数变化。** 将表达还原为线性 TPM,以组均值的对数比表示:
-
-$$\log_2\mathrm{FC} = \log_2\!\frac{\overline{\mathrm{TPM}}_A + 1}{\overline{\mathrm{TPM}}_B + 1}$$
-
-**显著性。** 在 log1p(TPM) 值上计算双侧 **Welch t 检验**,将细胞系视为重复样本,自由度采用 Welch–Satterthwaite 近似:
-
-$$t = \frac{\bar{x}_A - \bar{x}_B}{\sqrt{s_A^2/n_A + s_B^2/n_B}}$$
-
-该检验需要**每组 ≥ 2 个细胞系**;某组只有单个细胞系时 *p* 值无法定义,界面会明确提示,此时纵轴退化为平均表达量。默认阈值为 |log₂FC| ≥ 1 且 *p* ≤ 0.05,均可调整。
-
-## 使用方法
-
-```bash
-git clone https://github.com/YANGCUI0612/prostate-cell-line-expression.git
-cd prostate-cell-line-expression
-open index.html            # 直接打开,无需服务器
-```
-
-从源 DepMap 矩阵重新生成 `data.js`:`python3 build_data.py`。
-
 ## 细胞系面板
 
 | 细胞系 | 分子谱系 | 类型 |

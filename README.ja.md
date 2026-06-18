@@ -32,30 +32,6 @@
 - **並べ替え可能な発現変動遺伝子表** —— 全列を昇順/降順で並べ替え、遺伝子名で検索。
 - **遺伝子別の発現プロファイル** —— 遺伝子を選択すると、全 13 株での発現を系統別の色で表示。
 
-## データと方法
-
-**データソース。** *DepMap Public 26Q1* の前立腺サブセット(`OmicsExpressionTPMLogp1HumanProteinCodingGenes`):13 株・19,215 のタンパク質コード遺伝子の **log1p(TPM)**。値は DepMap により統一処理され、ここで追加のバッチ補正は**行っていません**。
-
-**フォールドチェンジ。** 発現を線形 TPM に戻し、群平均の対数比として要約します:
-
-$$\log_2\mathrm{FC} = \log_2\!\frac{\overline{\mathrm{TPM}}_A + 1}{\overline{\mathrm{TPM}}_B + 1}$$
-
-**有意性。** log1p(TPM) 値に対する両側 **Welch の *t* 検定**(細胞株をレプリケートとみなす)、自由度は Welch–Satterthwaite 近似:
-
-$$t = \frac{\bar{x}_A - \bar{x}_B}{\sqrt{s_A^2/n_A + s_B^2/n_B}}$$
-
-本検定には**各群 ≥ 2 株**が必要です。片群が 1 株のみの場合は *p* 値が定義できず、その旨を表示し、縦軸は平均発現量に切り替わります。既定のしきい値は |log₂FC| ≥ 1 かつ *p* ≤ 0.05(いずれも調整可能)。
-
-## 使い方
-
-```bash
-git clone https://github.com/YANGCUI0612/prostate-cell-line-expression.git
-cd prostate-cell-line-expression
-open index.html            # そのまま開く(サーバー不要)
-```
-
-ソースの DepMap 行列から `data.js` を再生成:`python3 build_data.py`。
-
 ## 細胞株パネル
 
 | 細胞株 | 分子系統 | 区分 |
