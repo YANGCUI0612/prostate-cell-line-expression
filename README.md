@@ -4,9 +4,9 @@
 
 **Interactive comparison of gene expression across prostate-cancer cell lines**
 
-[![Live demo](https://img.shields.io/badge/live_demo-online-24292f?style=flat-square&labelColor=505965&logo=githubpages&logoColor=white)](https://yangcui0612.github.io/prostate-cell-line-expression/)
-[![License](https://img.shields.io/badge/license-MIT-24292f?style=flat-square&labelColor=505965&logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Data](https://img.shields.io/badge/data-DepMap_Public_26Q1-24292f?style=flat-square&labelColor=505965)](https://depmap.org/portal/)
+[![Live demo](https://img.shields.io/badge/live_demo-online-24292f?style=flat&labelColor=505965&logo=githubpages&logoColor=white)](https://yangcui0612.github.io/prostate-cell-line-expression/)
+[![License](https://img.shields.io/badge/license-MIT-24292f?style=flat&labelColor=505965&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Data](https://img.shields.io/badge/data-DepMap_Public_26Q1-24292f?style=flat&labelColor=505965)](https://depmap.org/portal/)
 
 **English**&nbsp;&nbsp;·&nbsp;&nbsp;[简体中文](README.zh-CN.md)&nbsp;&nbsp;·&nbsp;&nbsp;[日本語](README.ja.md)
 
